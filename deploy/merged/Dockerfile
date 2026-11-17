@@ -50,16 +50,26 @@ COPY apps/cantus-switch /srv/cantus-switch
 COPY apps/cantus-gateway /srv/gateway
 COPY estate/console /srv/console
 
+# The registrar expiry cap this box has run as a bind-mounted patch over the gateway's
+# sip.js: the border keeps handset registrations in memory, so without the cap a restart
+# leaves every handset unregistered for up to the hour it asked for. It is carried here
+# because this box has it and a rebuild would otherwise silently drop it; upstreaming it
+# into apps/cantus-gateway/src/sip.js retires the copy.
+COPY christ/deploy/merged/gateway-sip.js /srv/gateway/src/sip.js
+# compose renamed the carrier settings (VOIPMS_* to SIP_*) and pinned SIP_LOCAL_PORT;
+# a single container has no compose, so the gateway starts through this instead.
+COPY christ/deploy/merged/gateway-entrypoint /usr/local/bin/gateway-entrypoint
+
 COPY christ/deploy/merged/supervisord.conf /etc/supervisor/supervisord.conf
 
 RUN mkdir -p /data/telno /data/switch /data/gateway /estate /etc/cantus \
- && chmod +x /usr/local/bin/telno-entrypoint
+ && chmod +x /usr/local/bin/telno-entrypoint /usr/local/bin/gateway-entrypoint
 
 ENV NODE_ENV=production \
     ESTATE_DIR=/estate \
     DATA_DIR=/data/telno
 
 # front door, console, telno, switch control, gateway health, and the voice ports
-EXPOSE 8001 8002 8090 8088 7454 5060/udp 7443/udp 7444/udp
+EXPOSE 8001 8002 8090 8088 7454 5060/udp 5062/udp 7443/udp 7444/udp 41000-41063/udp
 
 CMD ["supervisord", "-c", "/etc/supervisor/supervisord.conf", "-n"]

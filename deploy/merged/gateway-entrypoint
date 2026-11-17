@@ -1,0 +1,38 @@
+#!/bin/sh
+# The gateway reads its carrier settings under SIP_* names, but the stack's .env keeps
+# them under the VOIPMS_* names and lets compose do the renaming — and compose also
+# supplied defaults this service would otherwise take from its own code, including
+# SIP_LOCAL_PORT=0 (an ephemeral port nothing can reach). One container has no compose,
+# so the renaming and those defaults happen here.
+set -e
+
+SIP_HOST="${SIP_HOST:-${VOIPMS_SIP_HOST:-}}"
+SIP_PORT="${SIP_PORT:-${VOIPMS_SIP_PORT:-5060}}"
+SIP_USERNAME="${SIP_USERNAME:-${VOIPMS_SIP_USERNAME:-}}"
+SIP_PASSWORD="${SIP_PASSWORD:-${VOIPMS_SIP_PASSWORD:-}}"
+SIP_FROM_USER="${SIP_FROM_USER:-${VOIPMS_SIP_FROM_USER:-}}"
+SIP_DOMAIN="${SIP_DOMAIN:-${VOIPMS_SIP_DOMAIN:-}}"
+SIP_ADVERTISE="${SIP_ADVERTISE:-${PUBLIC_IP:-}}"
+SIP_REGISTER_MAX_SECONDS="${SIP_REGISTER_MAX_SECONDS:-120}"
+SIP_LOCAL_PORT="${SIP_LOCAL_PORT:-5060}"
+
+# Identity: the border is its own Cantus node, and the switch it talks to is now a
+# sibling in this container rather than a compose service name.
+CANTUS_ID="${GATEWAY_CANTUS_ID:-voipms@gateway}"
+CANTUS_SWITCH="${CANTUS_ID_SWITCH:-switch@estate.local}"
+CANTUS_RELAY="${CANTUS_RELAY_URL:-127.0.0.1:7444}"
+CANTUS_BIND="${CANTUS_BIND:-0.0.0.0:7453}"
+
+DATA_DIR="${DATA_DIR:-/data/gateway}"
+SRTP_STATE_FILE="${SRTP_STATE_FILE:-/data/srtp.json}"
+GATEWAY_HTTP_PORT="${GATEWAY_HTTP_PORT:-7454}"
+GATEWAY_RTP_START="${GATEWAY_RTP_START:-41000}"
+GATEWAY_RTP_END="${GATEWAY_RTP_END:-41063}"
+
+export SIP_HOST SIP_PORT SIP_USERNAME SIP_PASSWORD SIP_FROM_USER SIP_DOMAIN \
+  SIP_ADVERTISE SIP_REGISTER_MAX_SECONDS SIP_LOCAL_PORT \
+  CANTUS_ID CANTUS_SWITCH CANTUS_RELAY CANTUS_BIND \
+  DATA_DIR SRTP_STATE_FILE GATEWAY_HTTP_PORT GATEWAY_RTP_START GATEWAY_RTP_END
+
+cd /srv/gateway
+exec /usr/local/bin/node src/index.js
